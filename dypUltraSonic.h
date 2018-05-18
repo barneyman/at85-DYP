@@ -1,5 +1,4 @@
-#include <softwareSerial.h>	// using espsoftwareserial for esp
-
+#include <Stream.h>
 #include <circQ.h>
 
 class dypReadings : public circQueueT<32, 4, int>
@@ -63,22 +62,23 @@ protected:
 class dypUltraSonic
 {
 public:
-	dypUltraSonic(int rxPin, int txPin) :m_serial(rxPin,txPin)
+	dypUltraSonic(Stream*serialPort) :m_serial(serialPort)
 	{
 	}
 
 	void begin()
 	{
-		m_serial.begin(9600);
+		
 	}
 
 	bool readSensor();
 
+	dypReadings m_sensorReadings;
+
 protected:
 
-	SoftwareSerial m_serial;
+	Stream* m_serial;
 	circQueueT<32, 4> m_sensorData;
-	dypReadings m_sensorReadings;
 
 };
 
