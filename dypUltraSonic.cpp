@@ -3,19 +3,30 @@
 #include <Arduino.h>
 #include <HardwareSerial.h>
 
+#define _MAX_DRY_READS	10
 
 bool dypUltraSonic::readSensor()
 {
 	// flush it
 	m_sensorData.reset();
+	cli();
 	m_sensorReadings.reset();
+	sei();
+	dypReadings theseReadings;
 	m_serial->flush();
 
 	// fill a bucket ... we shold check this for timeouts
-	while (m_serial->available() < m_sensorData.space())
+	int countdown;
+	for (countdown = 0; (m_serial->available() < m_sensorData.space()) && countdown < _MAX_DRY_READS; countdown++)
 	{
 		delay(100);
 	}
+
+	if (countdown == _MAX_DRY_READS)
+	{
+		return false;
+	}
+
 
 	while (m_serial->available() && m_sensorData.space())
 	{
@@ -31,12 +42,14 @@ bool dypUltraSonic::readSensor()
 		{
 			// we have a hit
 			syncFound = true;
-			// we'll fall out at te next loop condition check
+			// we'll fall out at the next loop condition check
 		}
 		else
 		{
 			// read past it
 			m_sensorData.read();
+			// and replace it
+			m_sensorData.write(m_serial->read());
 		}
 	}
 	if (syncFound)
@@ -49,10 +62,12 @@ bool dypUltraSonic::readSensor()
 			unsigned char c3 = m_sensorData.read();
 			/*unsigned char c4 = */m_sensorData.read();
 			int value = (c2 << 8) | (c3);
-			m_sensorReadings.write(value);
+			theseReadings.write(value);
 		}
-
-		m_sensorReadings.lock();
+		theseReadings.lock();
+		cli();
+		m_sensorReadings = theseReadings;
+		sei();
 
 		return true;
 	}

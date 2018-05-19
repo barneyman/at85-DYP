@@ -29,7 +29,7 @@ dypUltraSonic dyp(&softy);
 
 void setup()
 {
-	delay(2000);
+	delay(200);
 	/* add setup code here */
 #ifdef __AVR_ATtiny85__
 
@@ -37,12 +37,12 @@ void setup()
 	tw.onRequest(i2cDataRequested);
 	tw.begin(0x12);
 
-	pinMode(LED_BUILTIN, OUTPUT);
-
 #else
+
 	Serial.begin(9600);
 	Serial.println("Running ...");
 #endif
+	pinMode(LED_BUILTIN, OUTPUT);
 
 	softy.begin(9600);
 	dyp.begin();
@@ -58,20 +58,46 @@ void i2cDataReceived(int count)
 void i2cDataRequested(void)
 {
 	// just hand back the mean
-	tw.send(
-		dyp.m_sensorReadings.average / 10
-	);
+	uint16_t number = dyp.m_sensorReadings.median;
+	tw.send(number >> 8);
+	tw.send(number & 0xff);
+	tw.send(dyp.m_sensorReadings.available()&0xff);
 }
 
 #endif
 
 bool flipflop = true;
 
+#define _OPTIMUM_READING 1920
+
 void loop()
 {
-	dyp.readSensor();
-	digitalWrite(LED_BUILTIN, flipflop ? LOW : HIGH);
-	flipflop = !flipflop;
+	if(dyp.readSensor())
+	{
+		digitalWrite(LED_BUILTIN, flipflop ? LOW : HIGH);
+		flipflop = !flipflop;
+
+#ifndef __AVR_ATtiny85__
+		if (abs(dyp.m_sensorReadings.average - _OPTIMUM_READING) > 5)
+		{
+			Serial.printf("ave %d from %d samples\n\r", dyp.m_sensorReadings.average, dyp.m_sensorReadings.available());
+			while (dyp.m_sensorReadings.available())
+			{
+				Serial.printf("%d ", dyp.m_sensorReadings.read());
+			}
+			Serial.println("\n\r=================");
+		}
+#endif
+	}
+	else
+	{
+#ifndef __AVR_ATtiny85__
+		Serial.println("NO DATA");
+#endif
+	}
+
+#ifndef __AVR_ATtiny85__
 	delay(1000);
+#endif
 }
 

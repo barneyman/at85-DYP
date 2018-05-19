@@ -1,14 +1,20 @@
 #include <Stream.h>
 #include <circQ.h>
 
-class dypReadings : public circQueueT<32, 4, int>
+class dypReadings : public circQueueT<8, 3, int>
 {
 public:
 	dypReadings()
 	{
 	}
 
-	qStorageType average, min, max, median;
+	volatile qStorageType average, min, max, median;
+
+	virtual void reset()
+	{
+		average= min= max= median = 0;
+		circQueueT<8, 3, int>::reset();
+	}
 
 	void lock()
 	{
@@ -40,7 +46,14 @@ public:
 			max = peek(available() - 1);
 
 			if (available() > 2)
-				median = peek((available() / 2) - 1);
+			{
+				if (available() % 2)
+				{
+					median = (available() >> 1) + 1;
+				}
+				else
+					median = peek(available() >> 1);
+			}
 			else
 				median = peek(0);
 		}
@@ -78,7 +91,7 @@ public:
 protected:
 
 	Stream* m_serial;
-	circQueueT<32, 4> m_sensorData;
+	circQueueT<32, 5> m_sensorData;
 
 };
 
