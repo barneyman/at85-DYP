@@ -20,16 +20,18 @@ void setup() {
 void loop() 
 {
 
-	static int lastRead = 0;
-#define _OPTIMUM_READ	1920
+
+#define _OPTIMUM_READ	1960
+#define _ALLOWED_RANGE	5
   
-	if(Wire.requestFrom(0x12, 3))
+	int status = 0;
+	uint8_t result = Wire.requestFrom(0x12, 3, status);
+	if(result)
 	{
 		int read = (Wire.read()<<8)|Wire.read();
-		if(abs(_OPTIMUM_READ -read)>5)
+		if(abs(_OPTIMUM_READ -read)>_ALLOWED_RANGE)
 		{
 			Serial.printf("read %d from %d samples\n\r",read, Wire.read());
-			lastRead = read;
 		}
 		else
 		{
@@ -39,8 +41,9 @@ void loop()
 	}
 	else
 	{
-		Serial.println("failed");
+		Serial.printf("%d ",status);
 	}
 
-	delay(750);
+	
+	delay(rand() % 5000);
 }

@@ -27,6 +27,9 @@
     <ClInclude Include="dypUltraSonic.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="__vm\.at85-DYP.vsarduino.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dypUltraSonic.cpp">

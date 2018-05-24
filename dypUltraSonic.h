@@ -1,10 +1,10 @@
 #include <Stream.h>
 #include <circQ.h>
 
-class dypReadings : public circQueueT<8, 3, int>
+class distanceReadings : public circQueueT<8, 3, int>
 {
 public:
-	dypReadings()
+	distanceReadings()
 	{
 	}
 
@@ -49,7 +49,7 @@ public:
 			{
 				if (available() % 2)
 				{
-					median = (available() >> 1) + 1;
+					median = peek((available() >> 1) + 1);
 				}
 				else
 					median = peek(available() >> 1);
@@ -72,7 +72,39 @@ protected:
 
 };
 
-class dypUltraSonic
+class readingsHandler
+{
+public:
+
+	readingsHandler():m_aReadingActive(true)
+	{}
+
+	distanceReadings* Readings()
+	{
+		return m_aReadingActive ? &m_sensorReadingsA : &m_sensorReadingsB;
+	}
+
+	distanceReadings* InactiveReadings()
+	{
+		return !m_aReadingActive ? &m_sensorReadingsA : &m_sensorReadingsB;
+	}
+
+
+protected:
+
+	void SwapReadings()
+	{
+		m_aReadingActive = !m_aReadingActive;
+	}
+
+private:
+
+	distanceReadings m_sensorReadingsA, m_sensorReadingsB;
+	bool m_aReadingActive;
+
+};
+
+class dypUltraSonic : public readingsHandler
 {
 public:
 	dypUltraSonic(Stream*serialPort) :m_serial(serialPort)
@@ -81,18 +113,46 @@ public:
 
 	void begin()
 	{
-		
 	}
 
 	bool readSensor();
 
-	dypReadings m_sensorReadings;
 
 protected:
 
+
 	Stream* m_serial;
 	circQueueT<32, 5> m_sensorData;
-
 };
 
 
+class TriggerUltrasonic : public readingsHandler
+{
+public:
+	TriggerUltrasonic(int trigPin, int echoPin, int triggerUS, float echoDiv, int triggerDelayms):m_trigger(trigPin), m_echo(echoPin), m_triggerUS(triggerUS), m_echoDiv(echoDiv), m_triggerDelay(triggerDelayms)
+	{
+	}
+
+	void begin();
+
+	bool readSensor();
+
+
+
+protected:
+
+	int m_trigger, m_echo;
+	// how long to send trigger high
+	int m_triggerUS, m_triggerDelay;
+	float m_echoDiv;
+};
+
+class HRS04 : public TriggerUltrasonic
+{
+public:
+	// 10us for trigger, /58 to get it into cms
+	HRS04(int trigPin, int echoPin) :TriggerUltrasonic(trigPin, echoPin, 10, 5.8, 100)
+	{
+
+	}
+};
