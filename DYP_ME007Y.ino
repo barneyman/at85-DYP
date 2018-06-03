@@ -6,21 +6,24 @@
 #include <softwareSerial.h>	// using espsoftwareserial for esp
 #endif
 
-#include "dypUltraSonic.h"
 
 // using the Serial TX version
 //#define _DYP_TX
 // a ping / echo variant
 #define _DYP_PWM
 
+
+
 #ifdef __AVR_ATtiny85__
 
 #ifdef _DYP_TX
+#include "dypUltraSonic.h"
 	#define _RX_PIN		PB3
 	#define _TX_PIN		PB1
 #endif
 #ifdef _DYP_PWM
-	#define _TRIGGER_PIN		PB3
+#include "trigecho.h"
+#define _TRIGGER_PIN		PB3
 	#define _ECHO_PIN			PB1
 #endif
 
