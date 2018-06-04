@@ -30,9 +30,18 @@
     <ClInclude Include="__vm\.at85-DYP.vsarduino.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="trigecho.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ultrasonic.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dypUltraSonic.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="trigecho.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

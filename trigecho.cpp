@@ -4,11 +4,13 @@
 
 bool TriggerUltrasonic::readSensor()
 {
+	// swap to empty backpck
 	distanceReadings *inactive = InactiveReadings();
+	// reset it
 	inactive->reset();
 
 	// and start the clock
-	for (int readings = 0; readings<8; readings++)
+	for (int readings = 0; readings<inactive->size(); readings++)
 	{
 		// write to the trigger, for the proscribed time
 		digitalWrite(m_trigger, HIGH);

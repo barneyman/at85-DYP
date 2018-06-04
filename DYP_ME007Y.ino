@@ -8,21 +8,24 @@
 
 
 // using the Serial TX version
-//#define _DYP_TX
+#define _DYP_TX
 // a ping / echo variant
-#define _DYP_PWM
+//#define _DYP_PWM
 
 
+#ifdef _DYP_TX
+#include "dypUltraSonic.h"
+#else
+#include "trigecho.h"
+#endif
 
 #ifdef __AVR_ATtiny85__
 
 #ifdef _DYP_TX
-#include "dypUltraSonic.h"
 	#define _RX_PIN		PB3
 	#define _TX_PIN		PB1
 #endif
 #ifdef _DYP_PWM
-#include "trigecho.h"
 #define _TRIGGER_PIN		PB3
 	#define _ECHO_PIN			PB1
 #endif
@@ -71,7 +74,8 @@ dypUltraSonic sensor(&softy);
 HRS04 sensor(_TRIGGER_PIN,_ECHO_PIN);
 #endif
 
-#define _OPTIMUM_READING 1798
+//#define _OPTIMUM_READING 1798
+#define _OPTIMUM_READING_VARIANCE	5
 
 void setup()
 {
@@ -122,6 +126,7 @@ void i2cDataRequested(void)
 #endif
 
 bool flipflop = true;
+unsigned int minSeen = -1, maxSeen=0;
 
 
 void loop()
@@ -134,13 +139,22 @@ void loop()
 
 
 #ifndef __AVR_ATtiny85__
-		if (abs(sensor.Readings()->average - _OPTIMUM_READING) > 5)
+#ifdef _OPTIMUM_READING
+		if (abs(sensor.Readings()->average - _OPTIMUM_READING) > _OPTIMUM_READING_VARIANCE)
+#endif
 		{
-			Serial.printf("ave %d from %d samples\n\r", sensor.Readings()->average, sensor.Readings()->available());
+			if (sensor.Readings()->median > maxSeen)
+				maxSeen = sensor.Readings()->median;
+
+			if (sensor.Readings()->median < minSeen)
+				minSeen = sensor.Readings()->median;
+
+			Serial.printf("median %d from %d samples\n\r", sensor.Readings()->median, sensor.Readings()->available());
 			while (sensor.Readings()->available())
 			{
 				Serial.printf("%d ", sensor.Readings()->read());
 			}
+			Serial.printf("\n\rmax %u min %u",maxSeen,minSeen);
 			Serial.println("\n\r=================");
 		}
 #endif
