@@ -66,8 +66,17 @@ SoftwareSerial softy(_RX_PIN, _TX_PIN);
 #endif
 #endif
 
+// no pin
+//#define XISTIRONPIN	NO_XSISTOR
+
+#ifdef __AVR_ATtiny85__
+#define XISTIRONPIN	PCINT1
+#else
+#define XISTIRONPIN	D7
+#endif
+
 #ifdef _DYP_TX
-dypUltraSonic sensor(&softy);
+dypUltraSonic sensor(&softy, XISTIRONPIN);
 #endif
 
 #ifdef _DYP_PWM
@@ -108,14 +117,24 @@ void setup()
 
 }
 
+bool flipflop = true;
+
 #ifdef __AVR_ATtiny85__
 
+bool doReading = false;
+
+// this is an ISR - so we can do very little except raise a flag!
 void i2cDataReceived(int count)
 {
+	while (TinyWire.available())
+		TinyWire.read();
+	// force a reading
+	doReading = true;
 }
 
 void i2cDataRequested(void)
 {
+	tw.send(sensor.LastReadState());
 	// just hand back the mean
 	uint16_t number = sensor.Readings()->median;
 	tw.send((number >> 8)&0xff);
@@ -125,51 +144,57 @@ void i2cDataRequested(void)
 
 #endif
 
-bool flipflop = true;
 unsigned int minSeen = -1, maxSeen=0;
 
 
 void loop()
 {
 
-	if(sensor.readSensor())
+
+#ifdef __AVR_ATtiny85__
+	if (doReading)
 	{
-		digitalWrite(LED_BUILTIN, flipflop ? LOW : HIGH);
-		flipflop = !flipflop;
-
-
-#ifndef __AVR_ATtiny85__
-#ifdef _OPTIMUM_READING
-		if (abs(sensor.Readings()->average - _OPTIMUM_READING) > _OPTIMUM_READING_VARIANCE)
+		// give i2c time to settle
+		delay(50);
 #endif
+		if (sensor.readSensor())
 		{
-			if (sensor.Readings()->median > maxSeen)
-				maxSeen = sensor.Readings()->median;
+			digitalWrite(LED_BUILTIN, flipflop ? LOW : HIGH);
+			flipflop = !flipflop;
 
-			if (sensor.Readings()->median < minSeen)
-				minSeen = sensor.Readings()->median;
+#ifndef __AVR_ATtiny85__
 
-			Serial.printf("median %d from %d samples\n\r", sensor.Readings()->median, sensor.Readings()->available());
-			while (sensor.Readings()->available())
+#ifdef _OPTIMUM_READING
+			if (abs(sensor.Readings()->average - _OPTIMUM_READING) > _OPTIMUM_READING_VARIANCE)
+#endif
 			{
-				Serial.printf("%d ", sensor.Readings()->read());
-			}
-			Serial.printf("\n\rmax %u min %u",maxSeen,minSeen);
-			Serial.println("\n\r=================");
-		}
-#endif
-	}
-	else
-	{
-#ifndef __AVR_ATtiny85__
-		Serial.println("NO DATA");
-#endif
-	}
+				if (sensor.Readings()->median > maxSeen)
+					maxSeen = sensor.Readings()->median;
 
-#ifndef __AVR_ATtiny85__
-	delay(1000);
+				if (sensor.Readings()->median < minSeen)
+					minSeen = sensor.Readings()->median;
+
+				Serial.printf("median %d from %d samples\n\r", sensor.Readings()->median, sensor.Readings()->available());
+				while (sensor.Readings()->available() > 0)
+				{
+					Serial.printf("%d ", sensor.Readings()->read());
+				}
+				Serial.printf("\n\rmax %u min %u", maxSeen, minSeen);
+				Serial.println("\n\r=================");
+			}
+		}
+		else
+		{
+			Serial.println("NO DATA");
+#endif
+		}
+
+#ifdef __AVR_ATtiny85__
+	}
+	// force sleep?
+	doReading=false;
 #else
-	delay(1000);
+	delay(5000);
 #endif
 }
 

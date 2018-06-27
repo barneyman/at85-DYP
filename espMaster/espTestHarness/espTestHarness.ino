@@ -21,21 +21,37 @@ void loop()
 {
 
 
-#define _OPTIMUM_READ	1960
+#define _OPTIMUM_READ	1793
 #define _ALLOWED_RANGE	5
   
 	int status = 0;
-	uint8_t result = Wire.requestFrom(0x12, 3, status);
+	Wire.beginTransmission(0x12);
+	Wire.write(0);
+	Wire.endTransmission();
+	delay(500);
+	uint8_t result = Wire.requestFrom(0x12, 4, status);
 	if(result)
 	{
-		int read = (Wire.read()<<8)|Wire.read();
-		if(abs(_OPTIMUM_READ -read)>_ALLOWED_RANGE)
+		int readState = Wire.read();
+
+		if (readState == 1)
 		{
-			Serial.printf("read %d from %d samples\n\r",read, Wire.read());
+
+			int read = (Wire.read() << 8) | Wire.read();
+			if (abs(_OPTIMUM_READ - read) > _ALLOWED_RANGE)
+			{
+				Serial.printf("read %d from %d samples\n\r", read, Wire.read());
+			}
+			else
+			{
+				Serial.printf(".");
+			}
 		}
 		else
 		{
-			Serial.printf(".");
+			Serial.printf("read failed %d\n\r", readState);
+			while (Wire.available())
+				Wire.read();
 		}
 
 	}
@@ -45,5 +61,5 @@ void loop()
 	}
 
 	
-	delay(rand() % 5000);
+	delay((rand() % 15000)+500);
 }
