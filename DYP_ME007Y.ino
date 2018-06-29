@@ -14,9 +14,9 @@
 
 
 #ifdef _DYP_TX
-#include "dypUltraSonic.h"
+#include <dypUltraSonic.h>
 #else
-#include "trigecho.h"
+#include <trigecho.h>
 #endif
 
 #ifdef __AVR_ATtiny85__
