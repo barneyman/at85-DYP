@@ -2,9 +2,15 @@
 #ifdef __AVR_ATtiny85__
 #include <SoftwareSerialTinyWIre.h>	
 #include <TinyWire.h>
+#include <avr\sleep.h>
+
+#define _SLEEP_BETWEEN
+
 #else
 #include <softwareSerial.h>	// using espsoftwareserial for esp
 #endif
+
+
 
 
 // using the Serial TX version
@@ -52,6 +58,8 @@
 
 #ifdef __AVR_ATtiny85__
 
+
+
 #ifdef _DYP_TX
 SoftwareSerialTinyWIre softy(_RX_PIN, _TX_PIN);
 TinyTwi tw(&softy);
@@ -88,11 +96,16 @@ HRS04 sensor(_TRIGGER_PIN,_ECHO_PIN);
 
 void setup()
 {
-	delay(200);
 	/* add setup code here */
 	pinMode(LED_BUILTIN, OUTPUT);
 
 #ifdef __AVR_ATtiny85__
+
+	ADCSRA &= ~(1 << ADEN); //Disable ADC, saves ~230uA
+
+#ifdef _SLEEP_BETWEEN
+	set_sleep_mode(SLEEP_MODE_PWR_DOWN); // sleep mode is set here
+#endif
 
 	tw.onReceive(i2cDataReceived);
 	tw.onRequest(i2cDataRequested);
@@ -117,35 +130,50 @@ void setup()
 
 }
 
-bool flipflop = true;
 
 #ifdef __AVR_ATtiny85__
 
 bool doReading = false;
 
+// to flag we can sleep
+bool readingRetrieved = true;
+
+
 // this is an ISR - so we can do very little except raise a flag!
 void i2cDataReceived(int count)
 {
+
 	while (TinyWire.available())
 		TinyWire.read();
 	// force a reading
 	doReading = true;
+
+	//digitalWrite(LED_BUILTIN, HIGH);
+	readingRetrieved = false;
 }
 
 void i2cDataRequested(void)
 {
+	//digitalWrite(LED_BUILTIN, LOW);
+
+
 	tw.send(sensor.LastReadState());
 	// just hand back the mean
 	uint16_t number = sensor.Readings()->median;
 	tw.send((number >> 8)&0xff);
 	tw.send(number & 0xff);
 	tw.send(sensor.Readings()->available()&0xff);
+	readingRetrieved = true;
 }
 
 #endif
 
 unsigned int minSeen = -1, maxSeen=0;
 
+unsigned long lastAwake = 0;
+#define _MAX_WAKE_TIME	2000
+
+bool flipflop = false; 
 
 void loop()
 {
@@ -154,13 +182,14 @@ void loop()
 #ifdef __AVR_ATtiny85__
 	if (doReading)
 	{
+		// don't come thru here again
+		doReading = false;
+
 		// give i2c time to settle
 		delay(50);
 #endif
 		if (sensor.readSensor())
 		{
-			digitalWrite(LED_BUILTIN, flipflop ? LOW : HIGH);
-			flipflop = !flipflop;
 
 #ifndef __AVR_ATtiny85__
 
@@ -191,8 +220,23 @@ void loop()
 
 #ifdef __AVR_ATtiny85__
 	}
-	// force sleep?
-	doReading=false;
+
+#ifdef _SLEEP_BETWEEN
+	if ((millis()- lastAwake)>_MAX_WAKE_TIME)
+	{
+		
+		PORTB &= ~(1 << PB4);
+
+		flipflop = !flipflop;
+		delay(100);
+		set_sleep_mode(SLEEP_MODE_PWR_DOWN); // sleep mode is set here
+		sleep_mode();                        // System actually sleeps here
+		lastAwake = millis();
+
+		PORTB |= 1 << PB4;
+	}
+#endif
+
 #else
 	delay(5000);
 #endif
