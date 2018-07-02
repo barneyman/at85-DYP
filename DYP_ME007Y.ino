@@ -33,7 +33,7 @@
 #endif
 #ifdef _DYP_PWM
 #define _TRIGGER_PIN		PB3
-	#define _ECHO_PIN			PB1
+#define _ECHO_PIN			PB1
 #endif
 
 
@@ -97,10 +97,12 @@ HRS04 sensor(_TRIGGER_PIN,_ECHO_PIN);
 void setup()
 {
 	/* add setup code here */
+#ifdef LED_BUILTIN
 	pinMode(LED_BUILTIN, OUTPUT);
+#endif
 
 #ifdef __AVR_ATtiny85__
-
+	
 	ADCSRA &= ~(1 << ADEN); //Disable ADC, saves ~230uA
 
 #ifdef _SLEEP_BETWEEN
@@ -133,10 +135,10 @@ void setup()
 
 #ifdef __AVR_ATtiny85__
 
-bool doReading = false;
+volatile bool doReading = false;
 
 // to flag we can sleep
-bool readingRetrieved = true;
+volatile bool readingRetrieved = true;
 
 
 // this is an ISR - so we can do very little except raise a flag!
@@ -147,16 +149,14 @@ void i2cDataReceived(int count)
 		TinyWire.read();
 	// force a reading
 	doReading = true;
-
-	//digitalWrite(LED_BUILTIN, HIGH);
+#ifdef LED_BUILTIN
+	PORTB |= 1 << LED_BUILTIN;
+#endif
 	readingRetrieved = false;
 }
 
 void i2cDataRequested(void)
 {
-	//digitalWrite(LED_BUILTIN, LOW);
-
-
 	tw.send(sensor.LastReadState());
 	// just hand back the mean
 	uint16_t number = sensor.Readings()->median;
@@ -164,6 +164,9 @@ void i2cDataRequested(void)
 	tw.send(number & 0xff);
 	tw.send(sensor.Readings()->available()&0xff);
 	readingRetrieved = true;
+#ifdef LED_BUILTIN
+	PORTB &= ~(1 << LED_BUILTIN);
+#endif
 }
 
 #endif
@@ -171,7 +174,7 @@ void i2cDataRequested(void)
 unsigned int minSeen = -1, maxSeen=0;
 
 unsigned long lastAwake = 0;
-#define _MAX_WAKE_TIME	2000
+#define _MAX_WAKE_TIME	10000
 
 bool flipflop = false; 
 
@@ -224,16 +227,16 @@ void loop()
 #ifdef _SLEEP_BETWEEN
 	if ((millis()- lastAwake)>_MAX_WAKE_TIME)
 	{
-		
-		PORTB &= ~(1 << PB4);
-
+#ifdef LED_BUILTIN		
+		PORTB &= ~(1 << LED_BUILTIN);
+#endif
 		flipflop = !flipflop;
-		delay(100);
 		set_sleep_mode(SLEEP_MODE_PWR_DOWN); // sleep mode is set here
 		sleep_mode();                        // System actually sleeps here
 		lastAwake = millis();
-
-		PORTB |= 1 << PB4;
+#ifdef LED_BUILTIN
+		PORTB |= 1 << LED_BUILTIN;
+#endif
 	}
 #endif
 
